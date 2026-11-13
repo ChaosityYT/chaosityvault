@@ -1,0 +1,7 @@
+node_modules/
+dist/
+build/
+*.xcodeproj/
+Payload/
+*.ipa
+.DS_Store

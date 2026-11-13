@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Chaosity Vault</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<style>
+:root{--bg:#0e0f12;--card:#171920;--line:#262a33;--text:#e9eaee;--dim:#9096a3;--red:#ff2a3a;--green:#3ecf6e;--amber:#f2b33d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line)}
+header h1{font-size:18px;margin:0;font-weight:600}header .sp{flex:1}
+main{padding:16px 20px;display:grid;gap:14px;max-width:1100px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.box h3{margin:0 0 8px;font-size:14px;font-weight:600}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sp{flex:1}
+.dim{color:var(--dim)}.b{background:#22262f;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer;font:inherit}
+.b:hover{background:#2a2f3a}.b.p{background:var(--red);border-color:var(--red);color:#fff}.b:disabled{opacity:.5;cursor:default}
+input[type=password],input[type=text]{background:#0f1116;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font:inherit;min-width:320px}
+.pill{border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600}.pill.g{background:#173d25;color:var(--green)}.pill.r{background:#3d1717;color:#ff7a84}.pill.a{background:#3d3017;color:var(--amber)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--dim);font-weight:500}
+.log{font:12px/1.5 Consolas,monospace;color:#c9ccd4;max-height:260px;overflow:auto;white-space:pre-wrap}
+.err{color:#ff7a84}
+</style></head>
+<body>
+<header><h1 id="name">Chaosity Vault</h1><span id="pill"></span><span class="sp"></span><button class="b" id="run">Run now</button><button class="b" id="auto"></button></header>
+<main>
+  <div class="box" id="setup"></div>
+  <div class="box" id="statusBox"></div>
+  <div class="box"><div class="row"><h3 style="margin:0">Schedule</h3><span class="sp"></span><span id="tabs"></span><button class="b" id="refreshSched">Refresh</button></div><div id="sched" style="margin-top:10px"></div></div>
+  <div class="box"><div class="row"><h3 style="margin:0">Clips</h3><span class="sp"></span><button class="b" id="openPlan">Open titles file</button><button class="b" id="openFolder">Open clip folder</button><button class="b" id="rescan">Find new clips</button><button class="b" id="preview">Preview next posts</button></div><div id="queue" style="margin-top:10px"></div></div>
+  <div class="box"><h3>Log</h3><div class="log" id="log"></div></div>
+</main>
+<script src="app.js"></script>
+</body></html>

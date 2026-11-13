@@ -1,0 +1,22 @@
+{
+  "name": "chaosity-vault",
+  "productName": "Chaosity Vault",
+  "version": "1.0.0",
+  "description": "Always-on shorts queue for the Chaosity Vault channel on its own iHatePosting account",
+  "main": "main.js",
+  "author": "Chaosity",
+  "scripts": {
+    "start": "electron . --show",
+    "build": "electron-builder --win dir"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.chaosity.chaosityvault",
+    "productName": "Chaosity Vault",
+    "files": ["main.js", "config.js", "engine.js", "importer.js", "api.js", "hub.js", "preload.js", "ui/**"],
+    "win": { "target": "dir", "signAndEditExecutable": false }
+  }
+}
