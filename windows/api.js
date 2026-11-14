@@ -41,6 +41,7 @@ const make = fast => { const R = fast ? 0 : 2100; return {
   create: body => call("POST", "/api/v1/posts", body, 6000),
   deletePost: id => call("DELETE", "/api/v1/posts/" + id, null, R),
   retry: id => call("POST", `/api/v1/posts/${id}/retry`, {}, 6000),
+  reschedule: (id, scheduledDate, scheduledTime) => call("POST", `/api/v1/posts/${id}/reschedule`, { scheduledDate, scheduledTime }, 6000),
   async upload(file, label) {
     const bytes = fs.readFileSync(file);
     const mime = /\.mov$/i.test(file) ? "video/quicktime" : "video/mp4";

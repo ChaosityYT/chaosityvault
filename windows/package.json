@@ -16,7 +16,20 @@
   "build": {
     "appId": "com.chaosity.chaosityvault",
     "productName": "Chaosity Vault",
-    "files": ["main.js", "config.js", "engine.js", "importer.js", "api.js", "hub.js", "preload.js", "ui/**"],
-    "win": { "target": "dir", "signAndEditExecutable": false }
+    "files": [
+      "main.js",
+      "collab.js",
+      "config.js",
+      "engine.js",
+      "importer.js",
+      "api.js",
+      "hub.js",
+      "preload.js",
+      "ui/**"
+    ],
+    "win": {
+      "target": "dir",
+      "signAndEditExecutable": false
+    }
   }
 }

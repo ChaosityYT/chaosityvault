@@ -140,6 +140,7 @@ struct PCView: View {
     @State private var online = false
     @State private var up: HubLink.Uploader?
     @State private var accounts: [HubLink.PCAccount] = []
+    @State private var collab: HubLink.Collab?
     @State private var error: String?
     @State private var busy = false
     var body: some View {
@@ -156,6 +157,16 @@ struct PCView: View {
                             if let t = up.lastTick { Text("Last run " + Date(timeIntervalSince1970: t / 1000).formatted(.relative(presentation: .named))).font(.caption).foregroundStyle(.secondary) }
                             if let s = up.stopReason { Text("Stopped: " + s).font(.caption).foregroundStyle(.red) } else if let e = up.lastError { Text(e).font(.caption).foregroundStyle(.orange) }
                         }
+                    }
+                    // Nov 13 2026: collabs (@ChaosityYouTube on Vault shorts). The PC does it with Claude in Chrome; this asks it to run now.
+                    Section("Collabs") {
+                        if let c = collab {
+                            Text(c.running ? "Claude is working on it on your PC..." : c.pending > 0 ? "\(c.pending) waiting · \(c.done) done" : "All done · \(c.done) collabs").font(.subheadline)
+                            ForEach(Array((c.pendingTitles ?? []).prefix(6).enumerated()), id: \.offset) { _, t in Text(t).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                            if !c.last.isEmpty { Text(c.last).font(.caption2).foregroundStyle(.secondary).lineLimit(3) }
+                        } else { Text("No report from the PC yet.").font(.footnote).foregroundStyle(.secondary) }
+                        Button(busy ? "Working..." : "Run collabs now") { act { try await HubLink.ask("collabRun", wait: 90) } }.disabled(busy || !online)
+                        Text("Runs on your PC, so it has to be on. It also runs by itself every hour.").font(.caption2).foregroundStyle(.secondary)
                     }
                     if !accounts.isEmpty { Section("Posts to") { ForEach(accounts, id: \.id) { a in Text("\(a.label) · \(a.cap)/day\(a.on ? "" : " (off)")") } } }
                     if let up, !up.recent.isEmpty { Section("Recent") { ForEach(up.recent, id: \.self) { Text($0).font(.caption2.monospaced()) } } }
@@ -176,6 +187,7 @@ struct PCView: View {
             async let o = HubLink.pcOnline(); async let u = HubLink.uploader(); async let a = HubLink.accounts()
             let (on, u2, a2) = try await (o, u, a)
             online = on; up = u2; accounts = a2; error = nil
+            collab = try? await HubLink.collab()
         } catch { self.error = error.localizedDescription }
     }
 }

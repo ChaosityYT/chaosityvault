@@ -8,6 +8,7 @@ app.setPath("userData", SHOT ? DATA + " (screenshot)" : DATA); // keep everythin
 const { Engine } = require("./engine");
 const { NC, PLAN } = require("./importer");
 const { uiApi: api, setKeyProvider } = require("./api");
+const { Collab, liveYouTubeVideos, findClaude } = require("./collab");
 const { Hub } = require("./hub");
 
 const SITE = "https://ihateposting.com";
@@ -15,7 +16,7 @@ const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.exit(0);
 
-let win, tray, engine, siteWin, quitting = false;
+let win, tray, engine, siteWin, collab, quitting = false;
 const startedVisible = process.argv.includes("--show");
 
 // ---- secrets (iHatePosting key, hub device key, vault passphrase), encrypted with Brian's Windows sign-in ----
@@ -144,6 +145,26 @@ function ipc() {
     sched = { at: Date.now(), data: { upcoming: up.map(row).sort(by(1)), published: pub.map(row).sort(by(-1)), failed: failed.map(row).sort(by(-1)) } };
     return sched.data;
   });
+  // Same screens as Post Library: schedule, library, published, new post.
+  h("accounts", () => api.accounts());
+  h("media", () => api.media());
+  h("posts", (status, from, to) => api.posts(status, from, to));
+  h("deletePost", id => api.deletePost(id));
+  h("reschedule", (id, d, t) => api.reschedule(id, d, t));
+  h("retry", id => api.retry(id));
+  h("createPost", body => api.create(body));
+  h("deleteMedia", async id => { const r = await deleteMedia(id); if (!r.ok) throw new Error(r.signedOut ? "Sign in to iHatePosting first (Auto tab)." : `Delete failed (HTTP ${r.status}). A file used by a scheduled post may need that post removed first.`); });
+  h("addFiles", async () => {
+    const { dialog } = require("electron");
+    const r = await dialog.showOpenDialog(win, { title: "Add to library", properties: ["openFile", "multiSelections"], filters: [{ name: "Videos", extensions: ["mp4", "mov"] }] });
+    const out = []; for (const f of r.filePaths) { out.push((await api.upload(f)).id); engine.log("Added to library: " + path.basename(f)); }
+    return out;
+  });
+  h("checkSignIn", () => signedIn());
+  h("collabStatus", () => collab.status());
+  h("collabSet", on => collab.setEnabled(on));
+  h("collabRun", () => collab.start());
+  h("collabCheck", () => collab.check());
   h("cancelPost", async id => { await api.deletePost(id); sched.at = 0; engine.log("Cancelled a scheduled post from the Schedule view."); });
   h("retryPost", async id => { await api.retry(id); sched.at = 0; engine.log("Retried a failed post from the Schedule view."); });
   h("hubInfo", () => hub.info());
@@ -171,11 +192,44 @@ function ipc() {
 app.on("second-instance", (_e, argv) => { if (!argv.includes("--hidden")) showWindow(); engine?.runOnOpen(); });
 app.on("window-all-closed", e => e.preventDefault?.());
 app.on("before-quit", () => { quitting = true; });
+
+/**
+ * Nov 13 2026: after the PC started at 2:28 PM, this app, Chaosity Vault and Comment Helper all ran for hours without
+ * reading or writing their own files (no runs, no log). Restarting them fixed it at once. So 30 s after launch the app
+ * checks it can really read and write its data folder; if not, it notes why in %TEMP% and restarts itself (up to 3 times).
+ */
+function startupSelfCheck() {
+  const dir = app.getPath("userData"), probe = require("path").join(dir, "startup-probe.txt");
+  const tries = +((process.argv.find(a => a.startsWith("--selfcheck=")) || "=0").split("=")[1]) || 0;
+  let why = "";
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(probe, new Date().toISOString());
+    if (fs.readFileSync(probe, "utf8").length < 10) why = "probe read back empty";
+    const st = require("path").join(dir, "state.json");
+    if (!why && !fs.existsSync(st)) why = "state.json not visible";
+  } catch (e) { why = e.code + " " + e.message; }
+  const line = `${new Date().toLocaleString()} [${process.pid}] ${app.getName()} self-check ${why ? "FAILED: " + why : "ok"} (try ${tries})
+`;
+  try { fs.appendFileSync(require("path").join(require("os").tmpdir(), "chaosity-apps-selfcheck.txt"), line); } catch {}
+  if (why && tries < 3) {
+    app.relaunch({ args: process.argv.slice(1).filter(a => !a.startsWith("--selfcheck=")).concat("--selfcheck=" + (tries + 1)) });
+    app.exit(0);
+  }
+}
+
 app.whenReady().then(() => {
+  setTimeout(startupSelfCheck, 30000);
   if (!gotLock) return;
   app.setAppUserModelId(APP_ID);
   engine = new Engine({ deleteMedia, notify, onChange: () => { refreshTray(); if (win && !win.isDestroyed()) win.webContents.send("changed"); } });
   hub = new Hub({ secret, engine, getKey, setKey, setAuto: on => setSettings({ auto: on }), log: m => engine.log(m), onChange: () => { if (win && !win.isDestroyed()) win.webContents.send("changed"); }, stateFile: path.join(DATA, "hub.json") });
+  // Collab (Nov 13 2026): main Chaosity channel added as collaborator on every Chaosity Vault short once it's live.
+  collab = new Collab({ app, findClaude, notify: async (t, b, onClick) => { if (!Notification.isSupported() || await obsOpen()) return; const n = new Notification({ title: t, body: b, icon: path.join(__dirname, "ui/icon.png") }); n.on("click", () => { showWindow(); onClick(); }); global.__collabNote = n; n.show(); }, log: m => engine.log(m), onChange: () => { if (win && !win.isDestroyed()) win.webContents.send("changed"); }, owner: { handle: "@chaosityvault", name: "Chaosity Vault" },
+    videos: () => liveYouTubeVideos(engine.queue.items.filter(i => i.posts).flatMap(i => Object.values(i.posts).map(postId => ({ postId, title: i.title || i.file }))), id => api.post(id), collab.state.posts) });
+  if (!SHOT) { const go = async fromLaunch => { if (await obsOpen()) return; collab.check({ fromLaunch }).catch(e => engine.log("Collab: " + e.message)); };
+    setTimeout(() => go(true), 3 * 60000); setInterval(() => go(false), 60 * 60000); /* at startup, then hourly (Brian, Nov 13 2026) */ }
+  hub.collab = collab; // phone: "Run collabs now"
   ipc();
   watchActivity();
   if (!SHOT && hub.enabled) { hub.start(); hub.syncKey().then(r => { if (r === "loaded") engine.tick(); }).catch(e => engine.log("Hub vault: " + e.message)); }

@@ -89,6 +89,8 @@ class Hub {
         const q = c.data, reply = { ...q, state: "done", doneAt: Date.now() };
         if (q.method === "auto") { this.setAuto(!!(q.arg && q.arg.on)); reply.result = { auto: !!(q.arg && q.arg.on) }; this.log(`From another device: auto ${q.arg && q.arg.on ? "on" : "off"}`); }
         else if (q.method === "runNow") { this.engine.tick(); reply.result = { ok: true }; }
+        // Nov 13 2026: "Run collabs now" from the phone (collab.js check, forced; runs Claude in the background on the PC).
+        else if (q.method === "collabRun" && this.collab) { const r = await this.collab.check({ force: true }); reply.result = { result: r, collab: this.collab.status() }; this.log("From your phone: run collabs (" + r + ")"); }
         else { reply.state = "failed"; reply.error = "That request isn't allowed."; }
         await this.call("PUT", `/v1/${PROJECT}/docs/requests/${encodeURIComponent(c.id)}`, { data: reply });
       }
@@ -105,6 +107,7 @@ class Hub {
     const ops = [], fp = v => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 16);
     const put = (coll, id, data) => { const k = coll + "/" + id, f = fp(data); if (this.state.published[k] === f) return; ops.push({ op: "put", coll, id, data }); this.state.published[k] = f; };
     const st = this.engine.state, s = st.settings || {};
+    if (this.collab) { const cs = this.collab.status(); put("pc", "collab", { ...cs, pendingTitles: (cs.pendingTitles || []).slice(0, 30) }); }
     put("pc", "uploader", { auto: !!s.auto, status: this.engine.status || "Idle", lastTick: st.lastTick || null, lastError: st.lastError || null, stopReason: st.stopReason || null, signIn: !!st.signIn, hasKey: !!this.getKey(), recent: this.engine.logs(15) });
     put("pc", "accounts", { accounts: (st.accounts || []).map(a => ({ id: a.id, platform: a.platform, label: a.label, cap: a.cap, on: s.accounts?.[a.id] !== false })) });
     put("queue", "_list", { items: (this.engine.queue.items || []).map(i => ({ file: i.file, title: i.title, game: i.game, dur: i.dur, status: i.status, sched: i.sched || {}, postedAt: i.postedAt || null })) });

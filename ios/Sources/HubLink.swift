@@ -59,6 +59,9 @@ enum HubLink {
         guard let b = try await doc("pc", "status").flatMap({ try? JSONDecoder().decode(Beat.self, from: $0) }) else { return false }
         return Date().timeIntervalSince1970 * 1000 - b.at < 150_000
     }
+    /// Collabs (@ChaosityYouTube on Vault shorts), as the PC's collab.js last reported them (Nov 13 2026).
+    struct Collab: Codable { let enabled: Bool; let done: Int; let pending: Int; let running: Bool; let last: String; let pendingTitles: [String]? }
+    static func collab() async throws -> Collab? { try await doc("pc", "collab").flatMap { try? JSONDecoder().decode(Collab.self, from: $0) } }
     static func uploader() async throws -> Uploader? { try await doc("pc", "uploader").flatMap { try? JSONDecoder().decode(Uploader.self, from: $0) } }
     static func accounts() async throws -> [PCAccount] { try await doc("pc", "accounts").flatMap { try? JSONDecoder().decode(Accounts.self, from: $0) }?.accounts ?? [] }
     static func queue() async throws -> [QueueItem] { try await doc("queue", "_list").flatMap { try? JSONDecoder().decode(Queue.self, from: $0) }?.items ?? [] }
